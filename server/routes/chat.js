@@ -1,4 +1,3 @@
-// server/routes/chat.js
 import express from 'express';
 import { getLayoutUpdate } from '../services/llmService.js';
 import { resizeArtboard, moveNode, findNodeByRole, resizeText } from '../services/layoutTransforms.js';
@@ -15,138 +14,148 @@ router.post('/', async (req, res) => {
     let explanation = '';
     let usedLLM = false;
     
-    const msgLower = message.toLowerCase();
+    const msgLower = message.toLowerCase().trim();
     
-    // COMMAND 1: Convert to 9:16
-    if (msgLower.includes('9:16') || (msgLower.includes('convert') && msgLower.includes('story'))) {
+    // ============================================
+    // GREETINGS HANDLER
+    // ============================================
+    const greetings = ['hi', 'hello', 'hey', 'namaste', 'hola'];
+    if (greetings.includes(msgLower)) {
+      console.log('🎉 Greeting detected!');
+      explanation = "Hello! 👋 I'm ready to help. What would you like to do with this layout?";
+      return res.json({ updatedLayout, explanation, success: true });
+    }
+    
+    // ============================================
+    // COMMAND 1: Convert to 9:16 (FLEXIBLE)
+    // ============================================
+    if (msgLower.includes('9:16') || 
+        msgLower.includes('convert to 9:16') || 
+        msgLower.includes('converting to 9:16') ||
+        (msgLower.includes('convert') && msgLower.includes('story'))) {
+      console.log('🔄 Converting to 9:16');
       updatedLayout = resizeArtboard(updatedLayout, 1080, 1920);
-      explanation = "✅ I've converted the design to 9:16 aspect ratio (1080×1920). The layout has been scaled proportionally.";
+      explanation = "✅ Converted to 9:16 aspect ratio (1080×1920)";
     }
     
+    // ============================================
     // COMMAND 2: Convert to 16:9
-    else if (msgLower.includes('16:9') || (msgLower.includes('youtube') && msgLower.includes('aspect'))) {
+    // ============================================
+    else if (msgLower.includes('16:9') || 
+             msgLower.includes('convert to 16:9') ||
+             msgLower.includes('youtube')) {
+      console.log('🔄 Converting to 16:9');
       updatedLayout = resizeArtboard(updatedLayout, 1920, 1080);
-      explanation = "✅ I've converted the design to 16:9 aspect ratio (1920×1080).";
+      explanation = "✅ Converted to 16:9 aspect ratio (1920×1080)";
     }
     
-    // COMMAND 3: Move headline to top
-    else if (msgLower.includes('move headline') && msgLower.includes('top')) {
-      const result = findNodeByRole(updatedLayout, 'headline');
-      if (result) {
-        updatedLayout = moveNode(updatedLayout, result.id, 'top');
-        explanation = "✅ I've moved the headline to the top of the canvas.";
-      } else {
-        explanation = "❌ Could not find the headline element.";
-      }
-    }
-    
-    // COMMAND 4: Move offer badge higher
-    else if (msgLower.includes('offer badge') && (msgLower.includes('higher') || msgLower.includes('up'))) {
-      const result = findNodeByRole(updatedLayout, 'offer');
-      if (result) {
-        updatedLayout = moveNode(updatedLayout, result.id, 'higher');
-        explanation = "✅ I've moved the offer badge higher.";
-      } else {
-        explanation = "❌ Could not find the offer badge.";
-      }
-    }
-    
-    // COMMAND 5: Make headline smaller
+    // ============================================
+    // COMMAND 3: Make headline smaller
+    // ============================================
     else if (msgLower.includes('headline') && msgLower.includes('smaller')) {
+      console.log('📝 Making headline smaller');
       const result = findNodeByRole(updatedLayout, 'headline');
       if (result) {
         updatedLayout = resizeText(updatedLayout, result.id, 0.8);
-        explanation = "✅ I've made the headline smaller (reduced font size by 20%).";
+        explanation = "✅ Made the headline smaller (font size reduced by 20%)";
       } else {
-        explanation = "❌ Could not find the headline.";
+        explanation = "❌ Could not find the headline element";
       }
     }
     
-    // COMMAND 6: Make headline bigger
+    // ============================================
+    // COMMAND 4: Make headline bigger
+    // ============================================
     else if (msgLower.includes('headline') && (msgLower.includes('bigger') || msgLower.includes('larger'))) {
+      console.log('📝 Making headline bigger');
       const result = findNodeByRole(updatedLayout, 'headline');
       if (result) {
         updatedLayout = resizeText(updatedLayout, result.id, 1.2);
-        explanation = "✅ I've made the headline larger (increased font size by 20%).";
+        explanation = "✅ Made the headline bigger (font size increased by 20%)";
       } else {
-        explanation = "❌ Could not find the headline.";
+        explanation = "❌ Could not find the headline element";
       }
     }
     
-    // COMMAND 7: Change headline color
-    else if (msgLower.includes('headline') && msgLower.includes('color')) {
+    // ============================================
+    // COMMAND 5: Move headline to top
+    // ============================================
+    else if (msgLower.includes('move headline') && msgLower.includes('top')) {
+      console.log('⬆️ Moving headline to top');
       const result = findNodeByRole(updatedLayout, 'headline');
       if (result) {
-        // Extract color from message (red, blue, green, etc.)
-        let color = '#FF0000'; // default red
-        if (msgLower.includes('blue')) color = '#0000FF';
-        else if (msgLower.includes('green')) color = '#00FF00';
-        else if (msgLower.includes('yellow')) color = '#FFFF00';
-        else if (msgLower.includes('black')) color = '#000000';
-        
-        if (result.node.style?.visual?.color) {
-          result.node.style.visual.color.value = color;
-        }
-        updatedLayout = JSON.parse(JSON.stringify(updatedLayout));
-        explanation = `✅ I've changed the headline color to ${color}.`;
+        updatedLayout = moveNode(updatedLayout, result.id, 'top');
+        explanation = "✅ Moved the headline to the top";
       } else {
-        explanation = "❌ Could not find the headline.";
+        explanation = "❌ Could not find the headline element";
       }
     }
     
-    // COMMAND 8: Keep product large (do nothing special)
-    else if (msgLower.includes('keep product') && msgLower.includes('large')) {
-      explanation = "✅ I'll keep the product image large as requested.";
+    // ============================================
+    // COMMAND 6: Move offer badge higher
+    // ============================================
+    else if ((msgLower.includes('offer') || msgLower.includes('badge')) && 
+             (msgLower.includes('higher') || msgLower.includes('up'))) {
+      console.log('⬆️ Moving offer badge higher');
+      const result = findNodeByRole(updatedLayout, 'offer');
+      if (result) {
+        updatedLayout = moveNode(updatedLayout, result.id, 'higher');
+        explanation = "✅ Moved the offer badge higher";
+      } else {
+        explanation = "❌ Could not find the offer badge";
+      }
     }
     
-    // COMMAND 9: Center product
+    // ============================================
+    // COMMAND 7: Center product
+    // ============================================
     else if (msgLower.includes('center') && msgLower.includes('product')) {
+      console.log('🎯 Centering product');
       const result = findNodeByRole(updatedLayout, 'product');
       if (result) {
         updatedLayout = moveNode(updatedLayout, result.id, 'center');
-        explanation = "✅ I've centered the product image.";
+        explanation = "✅ Centered the product image";
       } else {
-        explanation = "❌ Could not find the product image.";
+        explanation = "❌ Could not find the product image";
       }
     }
     
-    // COMMAND 10: Follow-up with "it" (last modified tracking)
-    else if (msgLower.includes('make it') || (msgLower.includes('it') && (msgLower.includes('smaller') || msgLower.includes('bigger')))) {
-      // Find last modified from history
-      let lastElement = null;
-      for (let i = history.length - 1; i >= 0; i--) {
-        if (history[i].role === 'user') {
-          const histMsg = history[i].content.toLowerCase();
-          if (histMsg.includes('headline')) lastElement = 'headline';
-          else if (histMsg.includes('offer')) lastElement = 'offer';
-          else if (histMsg.includes('product')) lastElement = 'product';
-          if (lastElement) break;
+    // ============================================
+    // COMMAND 8: Change headline color
+    // ============================================
+    else if (msgLower.includes('headline') && msgLower.includes('color')) {
+      console.log('🎨 Changing headline color');
+      const result = findNodeByRole(updatedLayout, 'headline');
+      if (result) {
+        let color = '#FF0000';
+        let colorName = 'red';
+        if (msgLower.includes('blue')) { color = '#0000FF'; colorName = 'blue'; }
+        else if (msgLower.includes('green')) { color = '#00FF00'; colorName = 'green'; }
+        else if (msgLower.includes('yellow')) { color = '#FFFF00'; colorName = 'yellow'; }
+        
+        if (result.node.style?.visual) {
+          result.node.style.visual.color = color;
         }
-      }
-      
-      if (lastElement) {
-        const result = findNodeByRole(updatedLayout, lastElement);
-        if (result) {
-          const scale = msgLower.includes('smaller') ? 0.8 : 1.2;
-          updatedLayout = resizeText(updatedLayout, result.id, scale);
-          explanation = `✅ I've made the ${lastElement} ${msgLower.includes('smaller') ? 'smaller' : 'bigger'}.`;
-        }
+        updatedLayout = JSON.parse(JSON.stringify(updatedLayout));
+        explanation = `✅ Changed headline color to ${colorName}`;
       } else {
-        explanation = "❌ I'm not sure which element you're referring to. Please specify (e.g., 'make headline smaller').";
+        explanation = "❌ Could not find the headline";
       }
     }
     
-    // DEFAULT: Use LLM for complex commands
+    // ============================================
+    // COMMAND 9: Help
+    // ============================================
+    else if (msgLower.includes('help')) {
+      explanation = "📚 **Commands you can try:**\n\n• 'hi' - Greeting\n• 'Convert to 9:16'\n• 'Convert to 16:9'\n• 'Make headline smaller/bigger'\n• 'Move headline to top'\n• 'Move offer badge higher'\n• 'Center the product'\n• 'Change headline color to blue'";
+    }
+    
+    // ============================================
+    // DEFAULT
+    // ============================================
     else {
-      usedLLM = true;
-      try {
-        const llmResult = await getLayoutUpdate(message, layout, history || []);
-        updatedLayout = llmResult.updatedLayout;
-        explanation = llmResult.explanation;
-      } catch (llmError) {
-        console.error('LLM Error:', llmError);
-        explanation = "⚠️ I couldn't process that request. Please try something like: 'Convert to 9:16', 'Make headline smaller', or 'Move offer badge higher'.";
-      }
+      console.log('❌ Unknown command:', msgLower);
+      explanation = "⚠️ I couldn't process that request. Try:\n\n• 'Convert to 9:16'\n• 'Make headline smaller'\n• 'Move offer badge higher'\n• 'Center the product'\n\nOr type 'help' to see all commands";
     }
     
     res.json({ 

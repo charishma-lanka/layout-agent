@@ -1,4 +1,5 @@
 // server/services/layoutTransforms.js
+
 export function resizeArtboard(layout, newWidth, newHeight) {
   const layoutCopy = JSON.parse(JSON.stringify(layout));
   const artboardId = layoutCopy.rootNodes[0];
@@ -49,7 +50,13 @@ export function moveNode(layout, nodeId, position) {
       node.nx = node.x / artboard.width;
       break;
     case 'higher':
-      node.y = node.y - 50;
+    case 'up':
+      node.y = Math.max(0, node.y - 50);
+      node.ny = node.y / artboard.height;
+      break;
+    case 'lower':
+    case 'down':
+      node.y = Math.min(artboard.height - node.height, node.y + 50);
       node.ny = node.y / artboard.height;
       break;
   }
@@ -59,7 +66,7 @@ export function moveNode(layout, nodeId, position) {
 
 export function findNodeByRole(layout, role) {
   const roleKeywords = {
-    'headline': ['Luxury Comfort', 'luxury', 'comfort', 'Surprisingly Attainable'],
+    'headline': ['Luxury Comfort', 'luxury', 'comfort', 'Surprisingly Attainable', 'Comfort that defines'],
     'discount': ['20%', 'OFF', '% OFF'],
     'offer': ['Limited time', 'offer', 'Limited time offer'],
     'product': ['Product.png', 'product'],
