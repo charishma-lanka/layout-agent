@@ -50,4 +50,10 @@ Last 6 messages ని history గా pass చేస్తాను, ఇది:
 ✅ "Make the headline smaller" - Font size reduced 20%
 ✅ "Move offer badge higher" - Position shifted up
 ✅ "Change headline color to red" - Text color changed
-✅ "Center the product" - Product image centered
+✅ "Center the product" - Product image centered 
+
+## 🤖 Why Groq/Llama?
+
+- **Free tier** available (no cost for assignment)
+- **Fast inference** (~100ms response time)
+- **Good JSON adherence** compared to other free models
